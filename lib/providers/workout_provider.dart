@@ -3,6 +3,10 @@
 import 'package:flutter/foundation.dart';
 import '../models/workout.dart';
 import '../services/workout_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import 'package:flutter/material.dart';
+import '../main.dart'; // Per accedere a navigatorKey
 
 class WorkoutProvider extends ChangeNotifier {
   // Stato privato
@@ -47,10 +51,38 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   List<Workout> get filteredPersonalWorkouts {
+    // Per utenti non loggati, restituisci lista vuota
+    final authProvider = Provider.of<AuthProvider>(
+      navigatorKey.currentContext!,
+      listen: false,
+    );
+
+    // Se utente non è loggato, non mostrare nessun allenamento
+    if (!authProvider.isLoggedIn) {
+      return [];
+    }
+
     List<Workout> baseList =
         _searchQuery.isEmpty ? _personalWorkouts : _searchResults;
+
+    // Filtra per allenamenti non consigliati
     baseList = baseList.where((w) => !w.isRecommended).toList();
 
+    // Filtra per allenamenti creati dall'utente corrente
+    // MODIFICA: Rimuovi la condizione !_isAdmin per applicare sempre il filtro
+    final userEmail = authProvider.currentUserEmail;
+
+    if (userEmail != null && userEmail.isNotEmpty) {
+      // Mostra solo gli allenamenti personali creati dall'utente corrente
+      // Anche se è admin, vede solo i suoi allenamenti personali
+      baseList = baseList.where((w) => w.createdBy == userEmail).toList();
+    } else {
+      // Se per qualche motivo userEmail è vuoto ma l'utente è loggato,
+      // mostra lista vuota per sicurezza
+      return [];
+    }
+
+    // Applica il filtro per difficoltà
     if (_selectedDifficulty == null ||
         _selectedDifficulty!.isEmpty ||
         _selectedDifficulty == 'Tutte') {
@@ -65,24 +97,35 @@ class WorkoutProvider extends ChangeNotifier {
 
   // Setter per controllo admin
   void setAdminStatus(bool isAdmin) {
-    _isAdmin = isAdmin;
-    notifyListeners();
+    // Utilizza Future.microtask per evitare notifyListeners durante il build
+    Future.microtask(() {
+      _isAdmin = isAdmin;
+      notifyListeners();
+    });
   }
 
   // Caricamento iniziale dei workout
   Future<void> loadWorkouts() async {
-    _setLoading(true);
-    _clearError();
+    _isLoading = true; // Imposta direttamente senza chiamare _setLoading
+    _errorMessage = null; // Imposta direttamente senza chiamare _clearError
+
     try {
       final recommended = await WorkoutService.getRecommendedWorkouts();
       final personal = await WorkoutService.getPersonalWorkouts();
-      _recommendedWorkouts = recommended;
-      _personalWorkouts = personal;
-      notifyListeners();
+
+      // Usa Future.microtask per ritardare l'aggiornamento dello stato
+      Future.microtask(() {
+        _recommendedWorkouts = recommended;
+        _personalWorkouts = personal;
+        _isLoading = false;
+        notifyListeners();
+      });
     } catch (e) {
-      _setError('Errore durante il caricamento degli allenamenti: $e');
-    } finally {
-      _setLoading(false);
+      Future.microtask(() {
+        _errorMessage = 'Errore durante il caricamento degli allenamenti: $e';
+        _isLoading = false;
+        notifyListeners();
+      });
     }
   }
 
@@ -212,7 +255,7 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   // METODO CORRETTO PER AGGIORNARE WORKOUT
-  Future<void> updateWorkout(Workout workout) async {
+  Future<bool> updateWorkout(Workout workout) async {
     _setLoading(true);
     _clearError();
     try {
@@ -231,8 +274,10 @@ class WorkoutProvider extends ChangeNotifier {
       await WorkoutService.updateWorkout(processedWorkout);
       _updateWorkoutInList(processedWorkout);
       notifyListeners();
+      return true; // Restituisci true in caso di successo
     } catch (e) {
       _setError('Errore durante l\'aggiornamento dell\'allenamento: $e');
+      return false; // Restituisci false in caso di errore
     } finally {
       _setLoading(false);
     }

@@ -30,7 +30,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadInitialData();
+
+    // Usa addPostFrameCallback per evitare di chiamare setState durante il build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialData();
+    });
   }
 
   @override
@@ -50,7 +54,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       await workoutProvider.loadWorkouts();
 
       // Imposta lo stato admin se necessario
-      if (authProvider.isLoggedIn) {
+      if (authProvider.isLoggedIn && mounted) {
         workoutProvider.setAdminStatus(authProvider.isAdmin);
       }
     } catch (e) {
@@ -989,7 +993,8 @@ class ProfileTab extends StatelessWidget {
               // Statistiche
               Consumer<WorkoutProvider>(
                 builder: (context, workoutProvider, child) {
-                  final personalWorkouts = workoutProvider.personalWorkouts;
+                  final personalWorkouts =
+                      workoutProvider.filteredPersonalWorkouts;
                   final totalWorkouts = personalWorkouts.length;
                   final totalDuration = personalWorkouts.fold<int>(
                     0,

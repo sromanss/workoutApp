@@ -280,7 +280,6 @@ class _ReviewPageState extends State<ReviewPage> {
                     ],
                   ),
                 ),
-                // CORREZIONE: Stelle con gestione decimali
                 _buildStarRating(review.rating.toDouble()),
               ],
             ),
@@ -289,20 +288,19 @@ class _ReviewPageState extends State<ReviewPage> {
               review.comment,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
-            // CORREZIONE: Pulsanti azione per l'autore
+            const SizedBox(height: 16),
+            // Pulsanti azione per l'autore o admin
             Consumer<AuthProvider>(
               builder: (context, authProvider, child) {
-                // CORREZIONE: Usa currentUserEmail invece di currentUserId
-                if (!authProvider.isLoggedIn ||
-                    authProvider.currentUserEmail != review.userEmail) {
-                  return const SizedBox.shrink();
-                }
+                final isAdmin = authProvider.isAdmin;
+                final isAuthor =
+                    authProvider.currentUserEmail == review.userEmail;
 
-                return Container(
-                  margin: const EdgeInsets.only(top: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    // Solo l'autore può modificare
+                    if (isAuthor)
                       TextButton.icon(
                         onPressed: () => _showEditReviewDialog(context, review),
                         icon: const Icon(Icons.edit, size: 16),
@@ -312,7 +310,9 @@ class _ReviewPageState extends State<ReviewPage> {
                               Theme.of(context).colorScheme.primary,
                         ),
                       ),
-                      const SizedBox(width: 8),
+                    const SizedBox(width: 8),
+                    // L'autore o l'admin possono eliminare
+                    if (isAuthor || isAdmin)
                       TextButton.icon(
                         onPressed: () =>
                             _showDeleteConfirmation(context, review),
@@ -322,8 +322,7 @@ class _ReviewPageState extends State<ReviewPage> {
                           foregroundColor: Theme.of(context).colorScheme.error,
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 );
               },
             ),

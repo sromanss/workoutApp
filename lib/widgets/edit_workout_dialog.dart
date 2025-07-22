@@ -144,8 +144,8 @@ class _EditWorkoutDialogState extends State<EditWorkoutDialog> {
       // Crea una copia dell'allenamento con i dati aggiornati
       final updatedWorkout = Workout(
         id: widget.workout.id,
-        title: _titleController.text,
-        description: _descriptionController.text,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
         difficulty: _difficulty,
         duration: _duration,
         exercises: widget.workout.exercises,
@@ -164,7 +164,8 @@ class _EditWorkoutDialogState extends State<EditWorkoutDialog> {
           SnackBar(
             content: Text(success
                 ? 'Allenamento aggiornato con successo'
-                : 'Errore durante l\'aggiornamento: ${workoutProvider.errorMessage}'),
+                : workoutProvider.errorMessage ??
+                    'Errore durante l\'aggiornamento'),
             backgroundColor: success ? Colors.green : Colors.red,
           ),
         );
