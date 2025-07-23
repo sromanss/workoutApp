@@ -26,6 +26,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  void _showAddRecommendedWorkoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AddRecommendedWorkoutDialog(),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -165,13 +172,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ],
         ),
       ),
-      floatingActionButton: _selectedIndex == 1
-          ? FloatingActionButton(
-              onPressed: () => _showAddWorkoutDialog(context),
-              backgroundColor: Colors.deepPurple,
+      floatingActionButton: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          if (authProvider.isAdmin) {
+            return FloatingActionButton(
+              onPressed: () =>
+                  _showAddRecommendedWorkoutDialog(context), // <-- CORRETTO
               child: const Icon(Icons.add),
-            )
-          : null,
+              backgroundColor: Colors.deepPurple,
+              tooltip: 'Aggiungi allenamento consigliato',
+            );
+          }
+          return const SizedBox.shrink();
+        },
+      ),
     );
   }
 }
@@ -886,6 +900,13 @@ class _PersonalWorkoutsTabState extends State<PersonalWorkoutsTab> {
       builder: (context) => AddWorkoutDialog(),
     );
   }
+
+  void _showAddRecommendedWorkoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AddRecommendedWorkoutDialog(),
+    );
+  }
 }
 
 // TAB DEL PROFILO
@@ -1245,12 +1266,13 @@ class _AddWorkoutDialogState extends State<AddWorkoutDialog> {
       duration: int.parse(_durationController.text.trim()),
       difficulty: _selectedDifficulty,
       exercises: [],
-      isRecommended: false,
+      isRecommended: false, // Questo è corretto
       createdAt: DateTime.now(),
       createdBy: authProvider.currentUserEmail ?? '',
     );
 
     try {
+      // CORREZIONE: Usa addPersonalWorkout invece di addRecommendedWorkout
       await workoutProvider.addPersonalWorkout(
         workout,
         userEmail: authProvider.currentUserEmail,
@@ -1260,7 +1282,189 @@ class _AddWorkoutDialogState extends State<AddWorkoutDialog> {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Allenamento creato con successo!'),
+            content: Text(
+                'Allenamento personale creato con successo!'), // Aggiorna anche il messaggio
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Errore durante la creazione: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
+
+// DIALOG PER AGGIUNGERE ALLENAMENTO CONSIGLIATO
+class AddRecommendedWorkoutDialog extends StatefulWidget {
+  const AddRecommendedWorkoutDialog({Key? key}) : super(key: key);
+
+  @override
+  State<AddRecommendedWorkoutDialog> createState() =>
+      _AddRecommendedWorkoutDialogState();
+}
+
+class _AddRecommendedWorkoutDialogState
+    extends State<AddRecommendedWorkoutDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _durationController = TextEditingController();
+  String _selectedDifficulty = 'Medio';
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _durationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Aggiungi allenamento consigliato'),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: _titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Titolo',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Inserisci un titolo';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Descrizione',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Inserisci una descrizione';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedDifficulty,
+                decoration: const InputDecoration(
+                  labelText: 'Difficoltà',
+                  border: OutlineInputBorder(),
+                ),
+                items: ['Facile', 'Medio', 'Difficile'].map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    setState(() {
+                      _selectedDifficulty = newValue;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _durationController,
+                decoration: const InputDecoration(
+                  labelText: 'Durata (minuti)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Inserisci la durata';
+                  }
+                  if (int.tryParse(value) == null) {
+                    return 'Inserisci un numero valido';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Annulla'),
+        ),
+        ElevatedButton(
+          onPressed: _createRecommendedWorkout,
+          child: const Text('Crea'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _createRecommendedWorkout() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final workoutProvider =
+        Provider.of<WorkoutProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    if (!authProvider.isAdmin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Solo gli admin possono creare allenamenti consigliati'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final workout = Workout(
+      id: '',
+      title: _titleController.text.trim(),
+      description: _descriptionController.text.trim(),
+      duration: int.parse(_durationController.text.trim()),
+      difficulty: _selectedDifficulty,
+      exercises: [],
+      isRecommended:
+          true, // Questo è importante: diverso dagli allenamenti personali!
+      createdAt: DateTime.now(),
+      createdBy: authProvider.currentUserEmail ?? 'admin',
+    );
+
+    try {
+      // IMPORTANTE: Chiama addRecommendedWorkout e non addPersonalWorkout
+      await workoutProvider.addRecommendedWorkout(
+        workout,
+        userEmail: authProvider.currentUserEmail,
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Allenamento consigliato creato con successo!'),
             backgroundColor: Colors.green,
           ),
         );

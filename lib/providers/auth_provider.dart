@@ -16,7 +16,7 @@ class AuthProvider extends ChangeNotifier {
 
   // Getter delegati all'AuthService con fallback locale
   bool get isLoggedIn => _currentUser != null || AuthService.isLoggedIn;
-  bool get isAdmin => _currentUser?.isAdmin ?? AuthService.isAdmin;
+  bool get isAdmin => _currentUser?.isAdmin ?? false;
   String? get currentUserId => _currentUser?.id ?? AuthService.currentUserId;
   String? get currentUserEmail =>
       _currentUser?.email ?? AuthService.currentUserEmail;

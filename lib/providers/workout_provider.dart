@@ -193,23 +193,12 @@ class WorkoutProvider extends ChangeNotifier {
     _setLoading(true);
     _clearError();
     try {
-      Workout processedWorkout;
-      if (isAdmin) {
-        processedWorkout = workout.copyWith(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          createdAt: DateTime.now(),
-          isRecommended: true,
-          createdBy: userEmail ?? 'admin', // CAMPO CREATEDBY CORRETTO
-        );
-      } else {
-        processedWorkout = workout.copyWith(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          createdAt: DateTime.now(),
-          isRecommended: true,
-          difficulty: 'Medio',
-          createdBy: userEmail ?? '', // CAMPO CREATEDBY CORRETTO
-        );
-      }
+      Workout processedWorkout = workout.copyWith(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        createdAt: DateTime.now(),
+        isRecommended: true, // <-- IMPORTANTE!
+        createdBy: userEmail ?? 'admin',
+      );
 
       await WorkoutService.addWorkout(processedWorkout);
       _recommendedWorkouts.add(processedWorkout);
@@ -226,23 +215,12 @@ class WorkoutProvider extends ChangeNotifier {
     _setLoading(true);
     _clearError();
     try {
-      Workout processedWorkout;
-      if (isAdmin) {
-        processedWorkout = workout.copyWith(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          createdAt: DateTime.now(),
-          isRecommended: false,
-          createdBy: userEmail ?? 'admin', // CAMPO CREATEDBY CORRETTO
-        );
-      } else {
-        processedWorkout = workout.copyWith(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          createdAt: DateTime.now(),
-          isRecommended: false,
-          difficulty: 'Medio',
-          createdBy: userEmail ?? '', // CAMPO CREATEDBY CORRETTO
-        );
-      }
+      Workout processedWorkout = workout.copyWith(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        createdAt: DateTime.now(),
+        isRecommended: false, // <-- FORZA SEMPRE false QUI
+        createdBy: userEmail ?? '',
+      );
 
       await WorkoutService.addWorkout(processedWorkout);
       _personalWorkouts.add(processedWorkout);
